@@ -31,20 +31,21 @@ const {
     "message": "Password must be longer than 3 chars"
   }
  */
-  router.post('/register', checkPasswordLength, checkUsernameFree, checkUsernameExists, (req, res, next) => {
-    const { username, password } = req.body; // Extract only username from the request body
-    const hash = bcrypt.hashSync(password, 8); // Hash the password
+  router.post('/register', checkPasswordLength, checkUsernameFree, async (req, res, next) => {
+    try {
+      const { username, password } = req.body;
+      const hash = bcrypt.hashSync(password, 8); // Hash the password
 
-    User.add({ username, password: hash }) // Save the user to the database
-      .then(saved => {
-        // Respond with user_id and username only
-        res.status(200).json({
-          user_id: saved.user_id,
-          username: saved.username
-        });
-      })
-      .catch(next); // Pass any errors to the error handling middleware
+      // Add the user to the database with the hashed password
+      const user = await User.add({ username, password: hash });
+
+      res.status(200).json(user);
+    } catch (err) {
+      next(err);
+    }
   });
+
+
 
 
 
@@ -67,13 +68,14 @@ const {
   router.post('/login', checkUsernameExists, (req, res, next) => {
     const { password } = req.body;
     if (bcrypt.compareSync(password, req.user.password)) {
-      // Store minimal user information in the session
-      req.session.userId = req.user.id; // Assuming the user ID is stored in `id` property
-      res.json(`Welcome ${req.user.username}!`);
+      // Set session only if authentication is successful
+      req.session.user = req.user; // Store user information in the session
+      res.json({status: 200, message: `Welcome ${req.user.username}!`});
     } else {
       next({ status: 401, message: "Invalid credentials" });
     }
   });
+
 
 
 
@@ -94,7 +96,17 @@ const {
  */
 
   router.get('/logout', (req, res, next) => {
-  res.json('logout')
+    if (req.session.user) {
+      req.session.destroy(err => {
+        if (err) {
+          next(err);
+        } else {
+          res.json({message: "logged out"});
+        }
+      });
+    } else {
+      res.json({message: "no session"});
+    }
 })
 
 // Don't forget to add the router to the `exports` object so it can be required in other modules
