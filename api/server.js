@@ -37,9 +37,10 @@ server.use(
     }),
     cookie: {
       maxAge: 1000 * 60 * 60,
-      secure: false,
+      secure: false, // This is okay for development
       httpOnly: true,
     },
+
   })
 );
 server.use(helmet());

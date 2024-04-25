@@ -31,11 +31,11 @@ const {
     "message": "Password must be longer than 3 chars"
   }
  */
-  router.post('/register', checkPasswordLength, checkUsernameFree, (req, res, next) => {
-    const { username } = req.body; // Extract only username from the request body
-    const password = bcrypt.hashSync(req.body.password, 8); // Hash the password
+  router.post('/register', checkPasswordLength, checkUsernameFree, checkUsernameExists, (req, res, next) => {
+    const { username, password } = req.body; // Extract only username from the request body
+    const hash = bcrypt.hashSync(password, 8); // Hash the password
 
-    User.add({ username, password }) // Save the user to the database
+    User.add({ username, password: hash }) // Save the user to the database
       .then(saved => {
         // Respond with user_id and username only
         res.status(200).json({
@@ -45,6 +45,7 @@ const {
       })
       .catch(next); // Pass any errors to the error handling middleware
   });
+
 
 
 
@@ -63,15 +64,17 @@ const {
     "message": "Invalid credentials"
   }
  */
-router.post('/login', checkUsernameExists, (req, res, next) => {
-  const { password } = req.body;
-  if (bcrypt.compareSync(password, req.user.password)) {
-    req.session.user = req.user
-    res.json(`Welcome ${req.user.username}!`)
-  } else {
-    next({ status: 401, message: "Invalid credentials" })
-  }
-})
+  router.post('/login', checkUsernameExists, (req, res, next) => {
+    const { password } = req.body;
+    if (bcrypt.compareSync(password, req.user.password)) {
+      // Store minimal user information in the session
+      req.session.userId = req.user.id; // Assuming the user ID is stored in `id` property
+      res.json(`Welcome ${req.user.username}!`);
+    } else {
+      next({ status: 401, message: "Invalid credentials" });
+    }
+  });
+
 
 
 /**
